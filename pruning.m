@@ -1,7 +1,8 @@
 % find elements of mi that are singular
 freqs = hist(mem_mi,max(mem_mi));
 singulars = (freqs==1);
-mask = 15:25;
+%mask = 15:25;
+mask = [1:6 9:14];
 
 % find communities without loop for singulars
 

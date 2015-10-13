@@ -10,22 +10,33 @@
 %        1. does it work with imbalanced data
 %        2. it doesn't work when two communities are detected as collection
 %        of singulars
-%           - do pruning with nol
+%           - do detection with loop
+%           - do pruning without loops on singulars
+%             - still can not separate two communities in tricky.mat
+%             - pruning merges all singular communities
+%       3. Loops need to be considered in the first phase
+%           but removed in the second phase
 %%
 clear all;
 close all;
 
-patterns = 100;
+patterns = 10;
 com_sizes =[1,4];         % set [1,1] for pure local; 
                           % set [log2(pattern) log2(pattern)] for pure distributed
                           % sampled from uniform distribution
-max_samples = 1;          % sampled from uniform distribution
+max_samples = 10;          % sampled from uniform distribution from each pattern
 
-isLoop = false;
+isLoop = true;
+isPrune = true;
+isEntropy = false;
 
 [ all_coms, all_patterns, all_raw] = generate_distributed( patterns, com_sizes, max_samples);
 %[ all_coms, all_patterns] = generate_distributed_sample();  % this woks perfect with joint entropy
-load('results/tricky2.mat')
+load('results/tricky4.mat')
+%   in tricky1: noPruning:fail, pruning:fail  (two big communities detected singular)
+%   in tricky2: noPruning:fail, pruning:pass  (one big communities detected singular)
+%   in tricky3: noPruning:pass, pruning:fail  (singulars are merged)
+%   we might be able to choose between prune and noPrune based on Rand
 
 % %shuffle features    % doesn't change anything though
 % shuffle = randperm(size(all_patterns,2));
@@ -34,26 +45,40 @@ load('results/tricky2.mat')
 
 
 [ adj_ent ] = adjacency( all_patterns, true );
-[ adj_mi ] = adjacency( all_patterns, false );
+[ adj_mi ] = adjacency( all_patterns, isEntropy );
+if(~isLoop)
+    adj_mi = adj_mi .* ~diag(ones(size(adj_mi,1),1));
+end
 
 filename = 'dist_reps.mat';
 folder = 'results'; 
 save(fullfile(folder,filename),'all_patterns','all_coms','adj_ent','adj_mi');
 
-system('Rscript find_communities.R','-echo');
+if(isPrune)
+    system('Rscript find_communities_withPruning.R','-echo');
+else
+    system('Rscript find_communities.R','-echo');
+end
 load('results/dist_coms.mat');
 
-
-
-memberships = [all_coms mem_ent mem_ent_noloop mem_mi mem_mi_noloop mem_mi_fixed mem_mi_noloop_fixed];
-
-fprintf('                    with self-loop             no self-loop\n')
-fprintf('                    modularity Rand   Size     modularity Rand  Size\n')
-fprintf('joint entropy:      %5.3f      %5.3f  %3d      %5.3f      %5.3f  %3d\n',mod_ent,comp_ent,size(unique(mem_ent),1),mod_ent_noloop,comp_ent_noloop,size(unique(mem_ent_noloop),1));
-fprintf('mutual information: %5.3f      %5.3f  %3d      %5.3f      %5.3f  %3d\n',mod_mi,comp_mi,size(unique(mem_mi),1),mod_mi_noloop,comp_mi_noloop,size(unique(mem_mi_noloop),1));
-fprintf('mutual info.(fixed):%5.3f      %5.3f  %3d      %5.3f      %5.3f  %3d\n',NaN,comp_mi_fixed,size(unique(mem_mi_fixed),1),NaN,comp_mi_noloop_fixed,size(unique(mem_mi_noloop_fixed),1));
-
-fprintf('pattern=%d\ncommunities=%d\n',size(all_patterns,1),size(unique(all_coms),1));
+if(isPrune)
+    % with pruning
+    memberships = [all_coms mem_mi mem_mi_prune];
+    fprintf('                    modularity   Rand    Size\n');
+    fprintf('ground truth:       %6.3f      %6.3f  %3d \n',mod_mi_truth,comp_mi_truth,size(unique(mem_mi_truth),1));
+    fprintf('mutual information: %6.3f      %6.3f  %3d \n',mod_mi,comp_mi,size(unique(mem_mi),1));
+    fprintf('mutual info.(prune):%6.3f      %6.3f  %3d \n',mod_mi_prune,comp_mi_prune,size(unique(mem_mi_prune),1));
+    fprintf('pattern=%d\tcommunities=%d\tisLoop=%d\tisPrune=%d\n',size(all_patterns,1),size(unique(all_coms),1),isLoop,isPrune);
+else
+    % No pruning
+    memberships = [all_coms mem_ent mem_ent_noloop mem_mi mem_mi_noloop mem_mi_fixed mem_mi_noloop_fixed];
+    fprintf('                    with self-loop             no self-loop\n')
+    fprintf('                    modularity Rand   Size     modularity Rand  Size\n')
+    fprintf('joint entropy:      %6.3f      %6.3f  %3d      %6.3f      %6.3f  %3d\n',mod_ent,comp_ent,size(unique(mem_ent),1),mod_ent_noloop,comp_ent_noloop,size(unique(mem_ent_noloop),1));
+    fprintf('mutual information: %6.3f      %6.3f  %3d      %6.3f      %6.3f  %3d\n',mod_mi,comp_mi,size(unique(mem_mi),1),mod_mi_noloop,comp_mi_noloop,size(unique(mem_mi_noloop),1));
+    fprintf('mutual info.(fixed):%6.3f      %6.3f  %3d      %6.3f      %6.3f  %3d\n',NaN,comp_mi_fixed,size(unique(mem_mi_fixed),1),NaN,comp_mi_noloop_fixed,size(unique(mem_mi_noloop_fixed),1));
+    fprintf('pattern=%d\tcommunities=%d\tisLoop=%d\tisPrune=%d\n',size(all_patterns,1),size(unique(all_coms),1),isLoop,isPrune);
+end
 
 %figure('name','pattern distribution');hist(all_raw,unique(all_raw));
 

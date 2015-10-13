@@ -18,10 +18,11 @@ function [ adj ] = adjacency( patterns, isEntropy )
     for f1=1:features
         for f2 = 1:features
             if isEntropy
-                adj(f1,f2) = jointEntropy(patterns(:,f1),patterns(:,f2));
+                %adj(f1,f2) = jointEntropy(patterns(:,f1),patterns(:,f2));
+                adj(f1,f2) = jointEntropy(patterns(:,f1),patterns(:,f2)) / (entropy(patterns(:,f1))+entropy(patterns(:,f2)));
             else
                 adj(f1,f2) = mutualInformation(patterns(:,f1),patterns(:,f2));
-            end
+            end            
         end
     end
 
