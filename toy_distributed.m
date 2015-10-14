@@ -20,11 +20,13 @@
 clear all;
 close all;
 
+rng(1)
+
 patterns = 500;
 com_sizes =[1,10];         % set [1,1] for pure local; 
                           % set [log2(pattern) log2(pattern)] for pure distributed
                           % sampled from uniform distribution
-max_samples = 10;          % sampled from uniform distribution from each pattern
+max_samples = 100;          % sampled from uniform distribution from each pattern
 
 isLoop = false;
 isPrune = true;

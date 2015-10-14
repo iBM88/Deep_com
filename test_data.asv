@@ -1,0 +1,83 @@
+%   Behrang Mehrparvar
+%   10/9/2015
+%   This code is used to understand the effect of data on mutual
+%   information in distributed representation. initially a distributed
+%   representation is generated. Then we introduce imbalance into the data
+%   by increasing the nnumber of replications of one pattern (the last
+%   pattern). Then we compute the mutual information between two features
+%   for each imbalance sample size.
+%
+%   Observation:
+%   Mutual information is the gap between the sum of entropies and the
+%   joint entropy. The mutual information increases initially by increasing
+%   the imbalance sample size and then decreases again. This behavior of
+%   mutual information is because of the nonlinear relation between entropy
+%   and th eimbalanced sample size.
+%
+%   Motivation:
+%   if we consider two pools of distributed representation in the layer,
+%   assuming that the deactivation effect holds, we can relate the
+%   imbalance size of one pool to the number of patterns that can be
+%   represented by the other pool.
+%   This hypothesis hold if we assume that every pattern can be detected
+%   in some pool of distributed repr
+
+clc;
+close all;
+
+results=[];
+
+pattern_bits = 10;   % minimum 2
+patterns = 2^pattern_bits;
+reps_max =3000;
+
+for reps = 0:reps_max
+
+    data = [];
+    for i=0:patterns-1
+        encoded = fliplr(de2bi(i));
+        spaces = zeros(1,log2(patterns)-size(encoded,2));
+        data = [data;[spaces encoded]];
+    end
+    data = [data;ones(reps,size(encoded,2))];
+    x = data(:,1);
+    y = data(:,2);
+    
+    ex = entropy(x);
+    ey = entropy(y);
+    es = ex+ey;
+    ej = jointEntropy(x,y);
+
+    mi = mutualInformation(x,y);
+    
+    results = [results;[reps,mi,es,ej]];
+    %fprintf('reps:%d\tMI:%6.3f\n',reps,mi);
+end
+
+figure('name','mutual information');
+plot(results(:,1),results(:,2),'r');
+legend('Ixy');
+xlabel('size of imbalanced pattern');
+ylabel('mutual information');
+title(strcat(num2str(log2(patterns)),' bit distributed representation'));
+
+figure('name','entropies');
+plot(results(:,1),results(:,3),'b');
+hold on;
+plot(results(:,1),results(:,4),'k');
+legend('Hx+Hy','Hxy');
+xlabel('size of imbalanced pattern');
+ylabel('entropies');
+title(strcat(num2str(log2(patterns)),' bit distributed representation'));
+
+[mx,mx_ind] = max(results(:,2));
+max_ent = entropy(unique(data(:,1)));
+fprintf('Peak point -----------\n');
+fprintf('Indiv. Entropy: %6.3f of %6.3f\n',results(mx_ind,3)/2,max_ent);
+fprintf('Sum Entropy:    %6.3f of %6.3f\n',results(mx_ind,3),2*max_ent);
+fprintf('Joint Entropy:  %6.3f of %6.3f\n',results(mx_ind,4),results(mx_ind,3));
+fprintf('Mutual Info.:   %6.3f of %6.3f\n',results(mx_ind,2),results(mx_ind,3)/2);
+fprintf('Distr. Bits:    %3d\n',pattern_bits);
+fprintf('Balanced:       %3d\n',patterns);
+fprintf('Imbalanced:     %3d\n',mx_ind);
+
